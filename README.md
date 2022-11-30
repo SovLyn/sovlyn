@@ -2,6 +2,8 @@
 
 ## Components
 
-- A reflect library <sovlyn/reflect>
+- A reflect library
 
-- A template Singleton implement <sovlyn/singleton>
+- A template Singleton implement
+
+- A log system
