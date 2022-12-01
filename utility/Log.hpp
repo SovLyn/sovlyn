@@ -13,6 +13,7 @@
 #include <cstring>
 #include <sovlyn/utility/Singleton.hpp>
 #include <sstream>
+#include <mutex>
 
 namespace sovlyn{
 namespace utility{
@@ -41,11 +42,13 @@ class Logger final{
 		std::string m_filename;
 		std::ofstream m_fout;
 		static inline const char * s_level[LEVEL_COUNT]={"DEBUG", "INFO", "WARN", "ERROR", "FATAL"};
+		std::mutex m_lock;
 
 		void rotate();
 };
 
 void Logger::log(Logger::Level level, const char * file, int line, const char * format, ...){
+	m_lock.lock();
 	if(m_level > level)return;
 	if(!m_fout.is_open()){
 		throw std::logic_error("open log file faild: "+(m_filename.empty()?"no log file":m_filename));
@@ -76,6 +79,7 @@ void Logger::log(Logger::Level level, const char * file, int line, const char * 
 	if(m_max>0&&m_len>=m_max){
 		rotate();
 	}
+	m_lock.unlock();
 }
 
 void Logger::open(const std::string & filename){
