@@ -21,8 +21,7 @@ class ClassField{
 		size_t m_offset;
 };
 
-
-};
-};
+}
+}
 
 #endif /* end of include guard: CLASSFIELD_HPP_AKTA327J */

@@ -22,6 +22,6 @@ class Singleton{
 		}
 
 };
-};
-};
+}
+}
 #endif /* end of include guard: SINGLETON_HPP_ */

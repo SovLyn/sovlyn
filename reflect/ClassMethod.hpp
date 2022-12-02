@@ -19,7 +19,7 @@ class ClassMethod{
 		uintptr_t m_method;
 };
 
-};
-};
+}
+}
 
 #endif /* end of include guard: CLASSMETHOD_HPP_Y01KBI5V */

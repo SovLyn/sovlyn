@@ -21,8 +21,8 @@ class ClassRegister{
 			sovlyn::utility::Singleton<ClassFactory>::instance().register_class_method(className, methodName, method);
 		}
 };
-};
-};
+}
+}
 
 #define REGISTER_CLASS(className)\
 	sovlyn::reflect::Object * createObject##className()\

@@ -106,8 +106,8 @@ void Logger::rotate(){
 	m_no++;
 }
 
-};
-};
+}
+}
 
 #define L_DEBUG(format, ...) \
 	sovlyn::utility::Singleton<Logger>::instance().log(sovlyn::utility::Logger::DEBUG, __FILE__, __LINE__, format, ##__VA_ARGS__)

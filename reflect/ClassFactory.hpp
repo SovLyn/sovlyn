@@ -169,7 +169,7 @@ void Object::call(const std::string & methodName){
 	(*((class_method *)func))(this);
 }
 
-};
-};
+}
+}
 
 #endif /* end of include guard: CLASSFACTORY_HPP_JSTNDKEP */

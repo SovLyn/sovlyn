@@ -14,6 +14,6 @@ class Object{
 	private:
 		std::string m_class_name;
 };
-};
-};
+}
+}
 #endif /* end of include guard: OBJECT_HPP_DZOQD4QB */
