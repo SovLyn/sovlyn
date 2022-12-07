@@ -7,3 +7,5 @@
 - A template Singleton implement
 
 - A log system
+
+- A serialize library, data is default save by big endian order.

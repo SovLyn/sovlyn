@@ -6,9 +6,11 @@
 #include <set>
 #include <map>
 #include <iostream>
+#include <fstream>
 #include <cstring>
 #include <cstdint>
 #include <string>
+#include <algorithm>
 #include <sys/types.h>
 #include "Serializable.hpp"
 
@@ -29,14 +31,27 @@ enum DataType {
 	CUSTOM
 };
 
+enum ByteOrder{
+	BIGENDIAN=0,
+	SMALLENDIAN,
+	UNDECIDED
+};
+
 class DataStream{
 	private:
 		std::vector<u_char> m_buf;
 		int m_loc=0;
+		static ByteOrder s_endian;
 
 	public:
 		DataStream();
+		explicit DataStream(const std::string & filename);
 		~DataStream();
+
+		static ByteOrder machinebyteorder();
+
+		size_t size(){return m_buf.size();}
+		size_t capacity(){return m_buf.capacity();}
 
 		void write(const char * data, int len);
 
@@ -87,51 +102,51 @@ class DataStream{
 		bool read_args(T & head, Args&... args);
 		bool read_args(){return true;}
 
-		DataStream & operator <<(bool value);
-		DataStream & operator >>(bool & value);
-		DataStream & operator <<(char value);
-		DataStream & operator >>(char & value);
-		DataStream & operator <<(int32_t value);
-		DataStream & operator >>(int32_t & value);
-		DataStream & operator <<(int64_t value);
-		DataStream & operator >>(int64_t & value);
-		DataStream & operator <<(float value);
-		DataStream & operator >>(float & value);
-		DataStream & operator <<(double value);
-		DataStream & operator >>(double & value);
-		DataStream & operator <<(const std::string & value);
-		DataStream & operator >>(std::string & value);
-		DataStream & operator <<(const char * value);
-		DataStream & operator >>(char * value);
-
 		template <typename T>
-		DataStream & operator <<(const std::vector<T> & vector);
+		DataStream & operator<<(T value){write(value);return *this;}
 		template <typename T>
-		DataStream & operator >>(std::vector<T> & vector);
+		DataStream & operator>>(T & value){read(value);return *this;}
 
-		template <typename T>
-		DataStream & operator <<(const std::list<T> & lis);
-		template <typename T>
-		DataStream & operator >>(std::list<T> & lis);
-
-		template <typename T>
-		DataStream & operator <<(const std::set<T> & s);
-		template <typename T>
-		DataStream & operator >>(std::set<T> & s);
-
-		template <typename K, typename V>
-		DataStream & operator <<(const std::map<K, V> & m);
-		template <typename K, typename V>
-		DataStream & operator >>(std::map<K, V> & m);
-
-		DataStream & operator <<(const Serialzable & value);
-		DataStream & operator >>(Serialzable & value);
-
-		void show();
+		int write_file(const std::string& filename);
 };
+
+ByteOrder DataStream::s_endian=UNDECIDED;
+
+ByteOrder DataStream::machinebyteorder(){
+	if(s_endian==UNDECIDED){
+		int64_t n=1;
+		if(((char *)&n)[0]==0)s_endian=BIGENDIAN;
+		else s_endian=SMALLENDIAN;
+	}
+	return DataStream::s_endian;
+}
 
 DataStream::DataStream(){
 	m_buf.reserve(10);
+	if(s_endian==UNDECIDED){
+		int64_t n=1;
+		if(((char *)&n)[0]==0)s_endian=BIGENDIAN;
+		else s_endian=SMALLENDIAN;
+	}
+	m_loc=0;
+}
+
+DataStream::DataStream(const std::string & filename){
+	m_buf.reserve(10);
+	if(s_endian==UNDECIDED){
+		int64_t n=1;
+		if(((char *)&n)[0]==0)s_endian=BIGENDIAN;
+		else s_endian=SMALLENDIAN;
+	}
+	std::ifstream file;
+	file.open(filename, std::fstream::in|std::fstream::binary);
+	file.seekg(0, std::ios::end);
+	size_t l=file.tellg();
+	std::cout << "file size:"<<l << std::endl;
+	m_buf.resize(l);
+	file.seekg(0, std::ios::beg);
+	file.read((char *)&(m_buf[0]), l);
+	m_loc=0;
 }
 
 DataStream::~DataStream(){}
@@ -143,16 +158,6 @@ void DataStream::write(const char * data, int len){
 	int bg=m_buf.size();
 	m_buf.resize(bg+len);
 	std::memcpy(&m_buf[bg], data, len);
-}
-
-DataStream & DataStream::operator <<(bool value){
-	write(value);
-	return *this;
-}
-
-DataStream & DataStream::operator >>(bool & value){
-	read(value);
-	return *this;
 }
 
 void DataStream::write(bool value){
@@ -171,16 +176,6 @@ bool DataStream::read(bool & value){
 	return true;
 }
 
-DataStream & DataStream::operator <<(char value){
-	write(value);
-	return *this;
-}
-
-DataStream & DataStream::operator >>(char & value){
-	read(value);
-	return *this;
-}
-
 void DataStream::write(char value){
 	char type = DataType::CHAR;
 	write(&type, sizeof(char));
@@ -197,18 +192,11 @@ bool DataStream::read(char & value){
 	return true;
 }
 
-DataStream & DataStream::operator <<(int32_t value){
-	write(value);
-	return *this;
-}
-
-DataStream & DataStream::operator >>(int32_t & value){
-	read(value);
-	return *this;
-}
-
 void DataStream::write(int32_t value){
 	char type = DataType::INT32;
+	if(s_endian==SMALLENDIAN){
+		std::reverse((char *)&value, (char *)&value+sizeof(int32_t));
+	}
 	write(&type, sizeof(char));
 	write((char *)&value, sizeof(int32_t));
 }
@@ -219,22 +207,18 @@ bool DataStream::read(int32_t & value){
 	}
 	++m_loc;
 	value = *((int32_t *)&m_buf[m_loc]);
+	if(s_endian==SMALLENDIAN){
+		std::reverse((char *)&value, (char *)&value+sizeof(int32_t));
+	}
 	m_loc+=sizeof(int32_t);
 	return true;
 }
 
-DataStream & DataStream::operator <<(int64_t value){
-	write(value);
-	return *this;
-}
-
-DataStream & DataStream::operator >>(int64_t & value){
-	read(value);
-	return *this;
-}
-
 void DataStream::write(int64_t value){
 	char type = DataType::INT64;
+	if(s_endian==SMALLENDIAN){
+		std::reverse((char *)&value, (char *)&value+sizeof(int64_t));
+	}
 	write(&type, sizeof(char));
 	write((char *)&value, sizeof(int64_t));
 }
@@ -245,22 +229,18 @@ bool DataStream::read(int64_t & value){
 	}
 	++m_loc;
 	value = *((int64_t *)&m_buf[m_loc]);
+	if(s_endian==SMALLENDIAN){
+		std::reverse((char *)&value, (char *)&value+sizeof(int64_t));
+	}
 	m_loc+=sizeof(int64_t);
 	return true;
 }
 
-DataStream & DataStream::operator <<(float value){
-	write(value);
-	return *this;
-}
-
-DataStream & DataStream::operator >>(float & value){
-	read(value);
-	return *this;
-}
-
 void DataStream::write(float value){
 	char type = DataType::FLOAT;
+	if(s_endian==SMALLENDIAN){
+		std::reverse((char *)&value, (char *)&value+sizeof(float));
+	}
 	write(&type, sizeof(char));
 	write((char *)&value, sizeof(float));
 }
@@ -271,22 +251,18 @@ bool DataStream::read(float & value){
 	}
 	++m_loc;
 	value = *((float *)&m_buf[m_loc]);
+	if(s_endian==SMALLENDIAN){
+		std::reverse((char *)&value, (char *)&value+sizeof(float));
+	}
 	m_loc+=sizeof(float);
 	return true;
 }
 
-DataStream & DataStream::operator <<(double value){
-	write(value);
-	return *this;
-}
-
-DataStream & DataStream::operator >>(double & value){
-	read(value);
-	return *this;
-}
-
 void DataStream::write(double value){
 	char type = DataType::DOUBLE;
+	if(s_endian==SMALLENDIAN){
+		std::reverse((char *)&value, (char *)&value+sizeof(double));
+	}
 	write(&type, sizeof(char));
 	write((char *)&value, sizeof(double));
 }
@@ -297,25 +273,17 @@ bool DataStream::read(double & value){
 	}
 	++m_loc;
 	value = *((double *)&m_buf[m_loc]);
+	if(s_endian==SMALLENDIAN){
+		std::reverse((char *)&value, (char *)&value+sizeof(double));
+	}
 	m_loc+=sizeof(double);
 	return true;
-}
-
-DataStream & DataStream::operator <<(const std::string & value){
-	write(value);
-	return *this;
-}
-
-DataStream & DataStream::operator >>(std::string & value){
-	read(value);
-	return *this;
 }
 
 void DataStream::write(const std::string & value){
 	char type = DataType::STRING;
 	write(&type, sizeof(char));
 	int64_t len=value.size();
-	std::cout << len << std::endl;
 	write(len);
 	write(value.data(), len);
 }
@@ -324,9 +292,9 @@ bool DataStream::read(std::string & value){
 	if(m_buf[m_loc]!=DataType::STRING){
 		return false;
 	}
-	m_loc+=2;
-	int64_t l = *((int64_t *)&m_buf[m_loc]);
-	m_loc+=sizeof(int64_t);
+	m_loc+=1;
+	int64_t l;
+	read(l);
 	char* buf=new char[l+1];
 	int i=0;
 	for (i = 0; i < l; ++i) {
@@ -337,16 +305,6 @@ bool DataStream::read(std::string & value){
 	m_loc+=l;
 	delete[] buf;
 	return true;
-}
-
-DataStream & DataStream::operator <<(const char * value){
-	write(value);
-	return *this;
-}
-
-DataStream & DataStream::operator >>(char * value){
-	read(value);
-	return *this;
 }
 
 void DataStream::write(const char * value){
@@ -361,9 +319,9 @@ bool DataStream::read(char * value){
 	if(m_buf[m_loc]!=DataType::STRING){
 		return false;
 	}
-	m_loc+=2;
-	int64_t l = *((int64_t *)&m_buf[m_loc]);
-	m_loc+=sizeof(int64_t);
+	m_loc+=1;
+	int64_t l;
+	read(l);
 	int i=0;
 	for (i = 0; i < l; ++i) {
 		value[i]=m_buf[m_loc+i];
@@ -371,18 +329,6 @@ bool DataStream::read(char * value){
 	value[i]='\0';
 	m_loc+=l;
 	return true;
-}
-
-template <typename T>
-DataStream & DataStream::operator <<(const std::vector<T> & value){
-	write(value);
-	return *this;
-}
-
-template <typename T>
-DataStream & DataStream::operator >>(std::vector<T> & value){
-	read(value);
-	return *this;
 }
 
 template <typename T>
@@ -401,9 +347,9 @@ bool DataStream::read(std::vector<T> & vec){
 	if(m_buf[m_loc]!=DataType::VECTOR){
 		return false;
 	}
-	m_loc +=2;
-	int64_t l = *((int64_t *)&m_buf[m_loc]);
-	m_loc+=sizeof(int64_t);
+	m_loc +=1;
+	int64_t l;
+	read(l);
 	vec.clear();
 	vec.reserve(l);
 	vec.resize(l);
@@ -411,18 +357,6 @@ bool DataStream::read(std::vector<T> & vec){
 		(*this)>>vec[i];
 	}
 	return true;
-}
-
-template <typename T>
-DataStream & DataStream::operator <<(const std::list<T> & lis){
-	write(lis);
-	return *this;
-}
-
-template <typename T>
-DataStream & DataStream::operator >>(std::list<T> & lis){
-	read(lis);
-	return *this;
 }
 
 template <typename T>
@@ -441,9 +375,9 @@ bool DataStream::read(std::list<T> & lis){
 	if(m_buf[m_loc]!=DataType::LIST){
 		return false;
 	}
-	m_loc +=2;
-	int64_t l = *((int64_t *)&m_buf[m_loc]);
-	m_loc+=sizeof(int64_t);
+	m_loc +=1;
+	int64_t l;
+	read(l);
 	lis.clear();
 	for (int i = 0; i < l; ++i) {
 		T temp;
@@ -451,18 +385,6 @@ bool DataStream::read(std::list<T> & lis){
 		lis.push_back(temp);
 	}
 	return true;
-}
-
-template <typename T>
-DataStream & DataStream::operator <<(const std::set<T> & s){
-	write(s);
-	return *this;
-}
-
-template <typename T>
-DataStream & DataStream::operator >>(std::set<T> & s){
-	read(s);
-	return *this;
 }
 
 template <typename T>
@@ -481,9 +403,9 @@ bool DataStream::read(std::set<T> & s){
 	if(m_buf[m_loc]!=DataType::SET){
 		return false;
 	}
-	m_loc +=2;
-	int64_t l = *((int64_t *)&m_buf[m_loc]);
-	m_loc+=sizeof(int64_t);
+	m_loc +=1;
+	int64_t l;
+	read(l);
 	s.clear();
 	for (int i = 0; i < l; ++i) {
 		T temp;
@@ -491,18 +413,6 @@ bool DataStream::read(std::set<T> & s){
 		s.insert(temp);
 	}
 	return true;
-}
-
-template <typename K, typename V>
-DataStream & DataStream::operator <<(const std::map<K, V> & m){
-	write(m);
-	return *this;
-}
-
-template <typename K, typename V>
-DataStream & DataStream::operator >>(std::map<K, V> & m){
-	read(m);
-	return *this;
 }
 
 template <typename K, typename V>
@@ -522,9 +432,9 @@ bool DataStream::read(std::map<K, V> & m){
 	if(m_buf[m_loc]!=DataType::MAP){
 		return false;
 	}
-	m_loc +=2;
-	int64_t l = *((int64_t *)&m_buf[m_loc]);
-	m_loc+=sizeof(int64_t);
+	m_loc +=1;
+	int64_t l;
+	read(l);
 	m.clear();
 	for (int i = 0; i < l; ++i) {
 		K key;
@@ -534,17 +444,6 @@ bool DataStream::read(std::map<K, V> & m){
 		m[key]=value;
 	}
 	return true;
-}
-
-
-DataStream & DataStream::operator <<(const Serialzable & value){
-	write(value);
-	return *this;
-}
-
-DataStream & DataStream::operator >>(Serialzable & value){
-	read(value);
-	return *this;
 }
 
 void DataStream::write(const Serialzable & value){
@@ -561,134 +460,22 @@ bool DataStream::read(Serialzable & value){
 }
 
 template <typename T, typename ...Args>
-void DataStream::write_args(const T & head, const Args&... args)
-{
+void DataStream::write_args(const T & head, const Args&... args){
     write(head);
     write_args(args...);
 }
 
 template <typename T, typename ...Args>
-bool DataStream::read_args(T & head, Args&... args)
-{
+bool DataStream::read_args(T & head, Args&... args){
     read(head);
     return read_args(args...);
 }
 
-void DataStream::show(){
-	std::cout<<"length: " << m_buf.size() << std::endl;
-	int i=0;
-	while(i<m_buf.size()){
-		switch ((DataType)m_buf[i]) {
-			case DataType::BOOL:{
-				std::cout << "BOOL: ";
-				i++;
-				bool * b=(bool *)&m_buf[i];
-				std::cout << *b << std::endl;
-				i++;
-				break;
-			}
-				
-			case DataType::CHAR:{
-				std::cout << "CHAR: ";
-				i++;
-				char * c=(char *)&m_buf[i];
-				std::cout << *c << std::endl;
-				i++;
-				break;
-			}
-
-			case DataType::INT32:{
-				std::cout << "INT32: ";
-				i++;
-				int32_t * i32=(int32_t *)&m_buf[i];
-				std::cout << *i32 << std::endl;
-				i+=sizeof(int32_t);
-				break;
-			}
-
-			case DataType::INT64:{
-				std::cout << "INT64: ";
-				i++;
-				int64_t * i64=(int64_t *)&m_buf[i];
-				std::cout << *i64 << std::endl;
-				i+=sizeof(int64_t);
-				break;
-			}
-
-			case DataType::FLOAT:{
-				std::cout << "FLOAT: ";
-				i++;
-				float * f=(float *)&m_buf[i];
-				std::cout << *f << std::endl;
-				i+=sizeof(float);
-				break;
-			}
-
-			case DataType::DOUBLE:{
-				std::cout << "DOUBLE: ";
-				i++;
-				double * d=(double *)&m_buf[i];
-				std::cout << *d << std::endl;
-				i+=sizeof(double);
-				break;
-			}
-
-			case DataType::STRING:{
-				std::cout << "STRING: ";
-				i+=2;
-				int64_t * l=(int64_t *)&m_buf[i];
-				std::cout<<"length: " << *l<<" ";
-				i+=sizeof(int64_t);
-				for (int j = 0; j < *l; ++j) {
-					std::cout<<m_buf[i+j];
-				}
-				i+=*l;
-				std::cout<<std::endl;
-				break;
-			}
-
-			case DataType::VECTOR:{
-				std::cout<<"VECTOR:";
-				i+=2;
-				int64_t * l=(int64_t *)&m_buf[i];
-				std::cout <<"length: "<<*l<<":"<<std::endl;
-				i+=sizeof(int64_t);
-				break;
-			}
-
-			case DataType::LIST:{
-				std::cout<<"LIST:";
-				i+=2;
-				int64_t * l=(int64_t *)&m_buf[i];
-				std::cout <<"length: "<<*l<<":"<<std::endl;
-				i+=sizeof(int64_t);
-				break;
-			}
-
-			case DataType::SET:{
-				std::cout<<"SET:";
-				i+=2;
-				int64_t * l=(int64_t *)&m_buf[i];
-				std::cout <<"length: "<<*l<<":"<<std::endl;
-				i+=sizeof(int64_t);
-				break;
-			}
-
-			case DataType::MAP:{
-				std::cout<<"MAP:";
-				i+=2;
-				int64_t * l=(int64_t *)&m_buf[i];
-				std::cout <<"length: "<<*l<<":"<<std::endl;
-				i+=sizeof(int64_t);
-				break;
-			}
-
-			default:
-				std::cout << "CUSTOM:" << std::endl;
-				i++;
-			
-		}
-	}
+int DataStream::write_file(const std::string & filename){
+	std::ofstream file;
+	file.open(filename, std::fstream::trunc|std::fstream::out|std::fstream::binary);
+	file.write((char *)(&m_buf[0]), m_buf.size());
+	return 0;
 }
 }
 }
