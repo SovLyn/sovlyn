@@ -14,6 +14,7 @@
 #include <sovlyn/utility/Singleton.hpp>
 #include <sstream>
 #include <mutex>
+#include <thread>
 
 namespace sovlyn{
 namespace utility{
@@ -37,7 +38,7 @@ class Logger final{
 	private:
 		Level m_level=DEBUG;
 		int m_len=0;
-		int m_max=0;
+		int m_max=10000;
 		int m_no=0;
 		std::string m_filename;
 		std::ofstream m_fout;
@@ -48,7 +49,6 @@ class Logger final{
 };
 
 void Logger::log(Logger::Level level, const char * file, int line, const char * format, ...){
-	m_lock.lock();
 	if(m_level > level)return;
 	if(!m_fout.is_open()){
 		throw std::logic_error("open log file faild: "+(m_filename.empty()?"no log file":m_filename));
@@ -74,6 +74,7 @@ void Logger::log(Logger::Level level, const char * file, int line, const char * 
 		ss<<"fail to parse format";
 	}
 	std::string s=ss.str();
+	m_lock.lock();
 	m_len+=s.size();
 	m_fout<<s<<std::endl;
 	if(m_max>0&&m_len>=m_max){
@@ -97,7 +98,7 @@ void Logger::rotate(){
 	std::stringstream ss;
 	std::time_t t = std::time(nullptr);
 	std::tm * tm = std::localtime(&t);
-	ss <<m_filename<<'.'<<m_no<< std::put_time(tm, ".%Y-%m-%d %H:%M:%S");
+	ss <<m_filename<<'.'<<std::this_thread::get_id()<<'.'<<m_no<< std::put_time(tm, ".%Y-%m-%d %H:%M:%S");
 	if(rename(m_filename.c_str(), ss.str().c_str())!=0){
 		throw std::logic_error("rename log file failed: "+std::string(strerror(errno)));
 	}
