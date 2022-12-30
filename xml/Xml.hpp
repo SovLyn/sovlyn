@@ -11,7 +11,8 @@
 #include "../utility/Value.hpp"
 
 namespace sovlyn{
-namespace utility{
+namespace xml{
+using sovlyn::utility::Value;
 class Xml{
 	private:
 		const static std::string s_null_name;
@@ -23,7 +24,7 @@ class Xml{
 
 	public:
 		Xml();
-		explicit Xml(const Xml & other);
+		Xml(const Xml & other);
 		Xml & operator=(const Xml &other);
 		Xml(const char* name);
 		Xml(const std::string & name);

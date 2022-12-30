@@ -1,4 +1,5 @@
 #pragma once
+#include <stdexcept>
 #ifndef VALUE_HPP_SCSIH4CD
 #define VALUE_HPP_SCSIH4CD
 #include <string>
@@ -17,7 +18,8 @@ class Value{
 			BOOL,
 			INT,
 			DOUBLE,
-			STRING
+			STRING,
+			OBJECT
 		};
 
 	private:
@@ -34,8 +36,8 @@ class Value{
 		Value(int val);
 		Value(double val);
 		Value(float val);
-		Value(const char * val);
-		Value(const std::string & val);
+		Value(const char * val, bool isObject=false);
+		Value(const std::string & val, bool isObject=false);
 
 		Value & operator=(bool val);
 		Value & operator=(long val);
@@ -54,6 +56,10 @@ class Value{
 		operator std::string();
 
 		Value::Type type(){return m_type;}
+
+		std::string str()const;
+
+		void asObject(bool isObject=true);
 		
 		friend std::ostream & operator<<(std::ostream &os, const Value& p);
 };
@@ -111,13 +117,13 @@ Value::Value(float val){
 	*(double *)m_val.c_str()=val;
 }
 
-Value::Value(const char * val){
-	m_type=STRING;
+Value::Value(const char * val, bool isObject){
+	m_type=isObject?Value::OBJECT:Value::STRING;
 	m_val=val;
 }
 
-Value::Value(const std::string & val){
-	m_type=STRING;
+Value::Value(const std::string & val, bool isObject){
+	m_type=isObject?Value::OBJECT:Value::STRING;
 	m_val=val;
 }
 
@@ -194,10 +200,47 @@ Value::operator std::string(){
 	return m_val;
 }
 
+std::string Value::str()const{
+	switch (m_type) {
+		case Value::NULLTYPE:{
+			return "null";
+		}
+		case Value::BOOL:{
+			return (*((bool *)m_val.c_str())?"true":"false");
+		}
+		case Value::INT:{
+			return std::to_string(*((long *)m_val.c_str()));
+		}
+		case Value::DOUBLE:{
+			return std::to_string(*((double *)m_val.c_str()));
+		}
+		case Value::STRING:{
+			return '\"'+m_val+'\"';
+		}
+		case Value::OBJECT:{
+			return m_val;
+		}
+	}
+}
+
+void Value::asObject(bool isObject){
+	if(isObject){
+		if(m_type==Value::STRING){
+			m_type=Value::OBJECT;
+		}else{
+			throw std::logic_error("cannot change a non string Value to object");
+		}
+	}else{
+		if(m_type==Value::OBJECT){
+			m_type=Value::STRING;
+		}
+	}
+}
+
 std::ostream & operator<<(std::ostream &os, const Value& v){
 	switch (v.m_type) {
 		case Value::NULLTYPE:{
-			os<<"<null>";
+			os<<"null";
 			break;
 		}
 		case Value::BOOL:{
@@ -214,6 +257,10 @@ std::ostream & operator<<(std::ostream &os, const Value& v){
 		}
 		case Value::STRING:{
 			os<<'\"'<<v.m_val<<'\"';
+			break;
+		}
+		case Value::OBJECT:{
+			os<<v.m_val;
 			break;
 		}
 	}
