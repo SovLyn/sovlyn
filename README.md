@@ -12,4 +12,6 @@
 
 - A json parser
 
-- A xml parser
+- An xml parser
+
+- An ini parser

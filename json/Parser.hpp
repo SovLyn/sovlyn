@@ -149,6 +149,11 @@ std::string Parser::parse_key(){
 	int pos=m_str.find('"', m_idx);
 	if(pos>=m_str.size())
 		throw wrong_format_error("cannot find '\"' to match '\"' at "+std::to_string(m_idx-1));
+	while(m_str[pos-1]=='\\'){
+		pos=m_str.find('"', pos+1);
+		if(pos>=m_str.size())
+			throw wrong_format_error("cannot find '\"' to match '\"' at "+std::to_string(m_idx-1));
+	}
 	int i=m_idx;
 	m_idx=pos+1;
 	return m_str.substr(i, pos-i);

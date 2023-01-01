@@ -209,7 +209,7 @@ Value Parser::parse_element_attr_value(){
 	if(m_str[m_idx]=='"'){
 		m_idx++;
 		int end=m_idx;
-		while(end<m_str.size()&&m_str[end]!='"')end++;
+		while(end<m_str.size()&&(m_str[end]!='"'||m_str[end-1]=='\"'))end++;
 		if(end>=m_str.size()||m_str[end]!='"')throw wrong_format_error("found \" in start but not in end");
 		raw_value=m_str.substr(m_idx, end-m_idx);
 		m_idx=end+1;
@@ -217,7 +217,7 @@ Value Parser::parse_element_attr_value(){
 		m_idx++;
 		int end=m_idx;
 		while(end<m_str.size()&&std::isalnum(m_str[end]))end++;
-		if(end>=m_str.size()||m_str[end]!='\'')throw wrong_format_error("found \' in start but not in end");
+		if(end>=m_str.size()||(m_str[end]!='\''||m_str[end-1]!='\''))throw wrong_format_error("found \' in start but not in end");
 		raw_value=m_str.substr(m_idx, end-m_idx);
 		m_idx=end+1;
 	}else{
