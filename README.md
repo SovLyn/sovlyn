@@ -14,4 +14,6 @@
 
 - An xml parser
 
-- An ini parser
+- An ini parser, not support subsection
+
+-A thread pool

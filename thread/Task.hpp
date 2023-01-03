@@ -4,7 +4,7 @@
 #include <mutex>
 
 namespace sovlyn{
-namespace utility{
+namespace threadpool{
 class Task{
 public:
 	Task();
@@ -15,7 +15,6 @@ public:
 	void set_data(void * data);
 
 	virtual void run()=0;
-	virtual void destory()=0;
 
 protected:
 	void * m_data;
@@ -23,6 +22,20 @@ protected:
 };
 
 Task::Task(){}
+
+Task::Task(void* data):m_data(data){}
+
+Task::~Task(){}
+
+void *Task::get_data(){
+	std::unique_lock<std::mutex> lock(m_mutex);
+	return m_data;
+}
+
+void Task::set_data(void *data){
+	std::unique_lock<std::mutex> lock(m_mutex);
+	m_data=data;
+}
 
 }
 }
